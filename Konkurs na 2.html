@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Konkurs Publiczności Strongman</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            touch-action: manipulation;
+        }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+        }
+        #focus-mode, #result-focus-mode, #dual-focus-mode { 
+            z-index: 50; 
+        }
+        body.focus-active { overflow: hidden; }
+        #live-timer { 
+            font-family: 'ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", monospace; 
+        }
+        #logo-upload-input { display: none; }
+        .start-disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* --- NOWE STYLE DLA UKŁADU ORGANIZERA --- */
+        #main-app {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .organizer-layout {
+            display: flex;
+            flex-direction: row;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+        .content-wrapper {
+            flex-grow: 1;
+            background-color: #1F2937;
+            border-radius: 1rem;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        .tab-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            width: 50px;
+            margin-left: -10px;
+            z-index: 10;
+            position: sticky;
+            top: 0;
+        }
+        .tab-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 140px;
+            padding: 0.5rem 0.25rem;
+            border: none;
+            background-color: #4B5563;
+            color: #D1D5DB;
+            font-weight: 700;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            text-align: center;
+            border-radius: 0 12px 12px 0;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s, transform 0.2s ease-out;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+        }
+        .tab-button:hover {
+            background-color: #5a6678;
+        }
+        .tab-button.active {
+            background-color: #F59E0B;
+            color: #111827;
+            transform: translateX(10px) rotate(180deg);
+            box-shadow: -4px 2px 8px rgba(0,0,0,0.3);
+        }
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.98); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        /* Nowe style dla stoperów w parach */
+        .dual-timer-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            width: 100%;
+        }
+        .timer-wrapper {
+            flex: 1;
+            text-align: center;
+        }
+        .timer-name {
+            font-size: 2rem;
+            color: #F59E0B;
+            margin-bottom: 1rem;
+        }
+        .dual-timer {
+            font-size: 4rem;
+            font-family: 'ui-monospace', monospace;
+        }
+        .dual-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .pair-selection {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .participant-card {
+            background: #4B5563;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            cursor: pointer;
+        }
+        .participant-card.selected {
+            background: #F59E0B;
+            color: #111827;
+        }
+        .volume-btn {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+        
+        /* Responsywne style */
+        @media (min-width: 768px) {
+            .dual-timer-container {
+                flex-direction: row;
+            }
+            .pair-selection {
+                flex-direction: row;
+            }
+            .dual-timer {
+                font-size: 5rem;
+            }
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-900 text-white antialiased">
+
+    <div id="main-app" class="container mx-auto p-4 md:p-8 max-w-4xl">
+        
+        <header class="text-center mb-6 flex-shrink-0">
+            <h1 class="text-4xl md:text-5xl font-black uppercase tracking-wider text-amber-400">Konkurs Publiczności</h1>
+        </header>
+
+        <main class="organizer-layout">
+            
+            <div class="content-wrapper">
+                <div class="tab-content-container">
+
+                    <!-- Zakładka 1: Konkurencje -->
+                    <div id="konkurencje" class="tab-content active">
+                         <div id="competition-logo-container" class="text-center mb-6">
+                            <img id="logo-display" alt="Logo Konkursu" class="hidden w-full max-w-xs mx-auto mb-4 rounded-lg shadow-lg" crossorigin="anonymous" />
+                            <input type="file" id="logo-upload-input" accept="image/*" onchange="handleLogoUpload(event)">
+                            <button id="change-logo-btn" onclick="document.getElementById('logo-upload-input').click()" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-bold rounded-lg transition-transform transform hover:scale-105">WGRAJ LOGO</button>
+                        </div>
+                        <div class="mb-4">
+                            <label for="competitionSelect" class="text-center block mb-2 font-bold text-gray-400">1. WYBIERZ KONKURENCJĘ</label>
+                            <select id="competitionSelect" onchange="switchCompetition()" class="w-full p-4 bg-gray-700 text-white text-xl font-bold rounded-xl border-2 border-gray-600 focus:ring-2 focus:ring-amber-400 focus:outline-none mb-2">
+                                <option value="0">KONKURENCJA 1</option>
+                                <option value="1">KONKURENCJA 2</option>
+                                <option value="2">KONKURENCJA 3</option>
+                                <option value="3">KONKURENCJA 4</option>
+                                <option value="4">KONKURENCJA 5</option>
+                                <option value="5">KONKURENCJA 6</option>
+                                <option value="6">KONKURENCJA 7</option>
+                                <option value="7">KONKURENCJA 8</option>
+                            </select>
+                            <input type="text" id="competitionNameInput" oninput="updateCompetitionName(this.value)" class="w-full p-4 bg-gray-600 text-white text-xl font-bold rounded-xl border-2 border-gray-500 focus:ring-2 focus:ring-amber-400 focus:outline-none mt-2" placeholder="Edytuj nazwę tutaj...">
+                        </div>
+                        <div class="mb-6">
+                            <label class="text-center block mb-2 font-bold text-gray-400">2. OKREŚL ZASADY (WYNIK)</label>
+                            <div class="flex items-center justify-center gap-4">
+                                <button id="sort-asc-btn" onclick="setSortOrder('asc')" class="flex-1 p-4 bg-gray-600 text-white font-bold rounded-xl text-2xl transition-colors">
+                                    ↓ Mniej = Lepiej
+                                </button>
+                                <button id="sort-desc-btn" onclick="setSortOrder('desc')" class="flex-1 p-4 bg-gray-600 text-white font-bold rounded-xl text-2xl transition-colors">
+                                    ↑ Więcej = Lepiej
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Zakładka 2: Uczestnicy -->
+                    <div id="uczestnicy" class="tab-content">
+                        <label class="text-center block mb-4 font-bold text-gray-400">DODAJ NOWEGO UCZESTNIKA</label>
+                         <div class="flex items-center gap-2 mb-6">
+                            <input type="text" id="nameInput" placeholder="WPISZ IMIĘ" onkeydown="handleManualNameInput(event)" class="flex-grow p-4 bg-gray-100 text-gray-900 text-xl font-bold rounded-xl border-2 border-gray-400 focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                            <button onclick="addParticipantFromInput()" class="p-4 bg-amber-500 hover:bg-amber-600 text-gray-900 text-xl font-bold rounded-xl transition-transform transform hover:scale-105 shadow-lg">ENTER</button>
+                        </div>
+                        <label class="text-center block mt-8 mb-4 font-bold text-gray-400">LISTA UCZESTNIKÓW</label>
+                        <ol id="participant-list" class="list-decimal list-inside space-y-2 text-lg bg-gray-700/50 p-4 rounded-lg"></ol>
+                    </div>
+
+                    <!-- Zakładka 3: Wyniki -->
+                    <div id="wyniki" class="tab-content">
+                        <label class="text-center block mb-4 font-bold text-gray-400">ROZGRYWKA I WYNIKI NA ŻYWO</label>
+                        
+                        <!-- Panel wyboru pary -->
+                        <div class="pair-selection mb-4">
+                            <div class="mb-2">
+                                <label class="block text-sm text-gray-400 mb-1">Zawodnik 1:</label>
+                                <div id="participant1-card" class="participant-card" onclick="selectParticipant(0)">
+                                    Wybierz zawodnika
+                                </div>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm text-gray-400 mb-1">Zawodnik 2:</label>
+                                <div id="participant2-card" class="participant-card" onclick="selectParticipant(1)">
+                                    Wybierz zawodnika
+                                </div>
+                            </div>
+                            <div>
+                                <button id="start-pair-btn" 
+                                        onclick="launchDualFocusMode()" 
+                                        class="w-full p-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                                    START PARY
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="overflow-x-auto">
+                            <table id="participantsTable" class="w-full text-left border-collapse">
+                                <thead class="bg-gray-700">
+                                    <tr>
+                                        <th class="p-3 text-sm font-bold uppercase text-gray-300">#</th>
+                                        <th class="p-3 text-sm font-bold uppercase text-gray-300">Imię</th>
+                                        <th class="p-3 text-sm font-bold uppercase text-gray-300 text-center">Wynik</th>
+                                        <th class="p-3 text-sm font-bold uppercase text-gray-300 text-center">Akcje</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="participantsBody" class="bg-gray-800"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Zakładka 4: Podsumowanie -->
+                    <div id="podsumowanie" class="tab-content">
+                        <label class="text-center block mb-4 font-bold text-gray-400">PODSUMOWANIE I EKSPORT</label>
+                        <div id="summary-logo-container" class="text-center mb-6"></div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                            <button onclick="summarizeResults()" class="w-full p-4 bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold rounded-xl transition-transform transform hover:scale-105 shadow-lg">🏆 PODSUMUJ WYNIKI</button>
+                            <button onclick="exportPDF()" class="w-full p-4 bg-gray-600 hover:bg-gray-700 text-white text-xl font-bold rounded-xl transition-transform transform hover:scale-105 shadow-lg">📄 EKSPORTUJ DO PDF</button>
+                        </div>
+                        <div class="mt-8 grid grid-cols-1 gap-4">
+                            <button onclick="resetCompetitionWithConfirmation()" class="w-full p-5 bg-red-800 hover:bg-red-900 text-white text-xl font-bold rounded-xl transition-transform transform hover:scale-105 shadow-lg">🔄 RESETUJ KONKURENCJĘ</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            
+            <nav class="tab-nav">
+                <button class="tab-button active" data-tab="konkurencje">Konkurencje</button>
+                <button class="tab-button" data-tab="uczestnicy">Uczestnicy</button>
+                <button class="tab-button" data-tab="wyniki">Wyniki</button>
+                <button class="tab-button" data-tab="podsumowanie">Podsumowanie</button>
+            </nav>
+
+        </main>
+    </div>
+
+    <!-- Ukryte elementy -->
+    <div id="focus-mode" class="hidden fixed inset-0 bg-gray-900 flex flex-col items-center justify-around p-4">
+        <div class="text-center">
+            <p class="text-2xl md:text-3xl text-gray-400">TERAZ STARTUJE:</p>
+            <p id="focus-participant-name" class="text-4xl md:text-5xl font-bold text-amber-400"></p>
+        </div>
+        <div id="live-timer" class="text-8xl md:text-9xl lg:text-[10rem] font-black text-white my-4">0,00</div>
+        <div id="focus-controls" class="w-full max-w-md text-center">
+            <button id="focus-start-btn" onclick="startStoper()" class="w-full p-6 bg-green-600 hover:bg-green-700 text-white text-4xl font-bold rounded-2xl shadow-2xl transition-transform transform hover:scale-105">START STOPERA</button>
+            <div id="focus-running-btns" class="hidden grid grid-cols-2 gap-4">
+                <button onclick="recordLoop()" class="p-6 bg-blue-600 hover:bg-blue-700 text-white text-3xl font-bold rounded-2xl shadow-2xl transition-transform transform hover:scale-105">🔁 LOOP</button>
+                <button onclick="stopTimer()" class="p-6 bg-red-600 hover:bg-red-700 text-white text-3xl font-bold rounded-2xl shadow-2xl transition-transform transform hover:scale-105">⏹️ STOP</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="result-focus-mode" class="hidden fixed inset-0 bg-gray-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-4">
+        <p id="result-focus-name" class="text-3xl text-gray-400 mb-4">Edytuj wynik dla:</p>
+        <input type="number" id="result-focus-input" class="w-full max-w-sm p-4 bg-gray-700 text-white text-center text-7xl font-bold rounded-xl border-2 border-gray-600 focus:ring-2 focus:ring-amber-400 focus:outline-none mb-6" />
+        <button id="result-focus-save" class="w-full max-w-sm p-5 bg-amber-500 hover:bg-amber-600 text-gray-900 text-2xl font-bold rounded-xl transition-transform transform hover:scale-105 shadow-lg">ZAPISZ WYNIK</button>
+    </div>
+    
+    <!-- Nowy tryb focusu dla dwóch stoperów -->
+    <div id="dual-focus-mode" class="hidden fixed inset-0 bg-gray-900 flex flex-col items-center justify-around p-4">
+        <div class="text-center mb-6">
+            <p class="text-2xl md:text-3xl text-gray-400">RYWALIZACJA PAR</p>
+        </div>
+        
+        <!-- Przyciski głośności dla smartfonów -->
+        <button id="volume-up" class="volume-btn" aria-label="Głośniej"></button>
+        <button id="volume-down" class="volume-btn" aria-label="Ciszej"></button>
+        
+        <!-- Wspólny przycisk startu -->
+        <button id="dual-start-btn" onclick="startBothStoper()" class="w-full max-w-md p-6 bg-green-600 text-white text-3xl font-bold rounded-2xl mb-6">
+            START
+        </button>
+        
+        <div class="dual-timer-container">
+            <!-- Stoper 1 -->
+            <div class="timer-wrapper">
+                <div id="dual-timer-name1" class="timer-name">Zawodnik 1</div>
+                <div id="live-timer1" class="dual-timer">0,00</div>
+                <div class="dual-controls">
+                    <button onclick="stopDualStoper(1)" class="p-4 bg-red-600 text-white text-xl font-bold rounded-xl">STOP</button>
+                </div>
+            </div>
+            
+            <!-- Stoper 2 -->
+            <div class="timer-wrapper">
+                <div id="dual-timer-name2" class="timer-name">Zawodnik 2</div>
+                <div id="live-timer2" class="dual-timer">0,00</div>
+                <div class="dual-controls">
+                    <button onclick="stopDualStoper(2)" class="p-4 bg-red-600 text-white text-xl font-bold rounded-xl">STOP</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-6 w-full max-w-md">
+            <button onclick="saveDualResults()" 
+                    id="save-dual-results" 
+                    class="w-full p-5 bg-amber-500 hover:bg-amber-600 text-gray-900 text-xl font-bold rounded-xl shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                ZAPISZ WYNIKI
+            </button>
+        </div>
+    </div>
+
+    <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-70 hidden" onclick="hideModal()"></div>
+    <div id="modal-panel" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-800 rounded-2xl shadow-2xl p-6 w-11/12 max-w-lg hidden text-white" style="z-index: 60;">
+        <h2 id="modal-title" class="text-2xl font-bold mb-4 text-amber-400"></h2>
+        <div id="modal-content" class="mb-6 max-h-[60vh] overflow-y-auto"></div>
+        <div id="modal-buttons" class="flex justify-end gap-4"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <script>
+        // --- LOGIKA DLA ZAKŁADEK ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetTabId = button.dataset.tab;
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    button.classList.add('active');
+                    document.getElementById(targetTabId).classList.add('active');
+                });
+            });
+        });
+
+        // --- STATE MANAGEMENT ---
+        let competitions = [];
+        let currentCompetition = 0;
+        let timer = null, startTime = null, currentIndex = null, loops = [];
+        const APP_STORAGE_KEY = 'strongmanAppData_v8'; // Nowa wersja
+
+        // --- NOWY STAN DLA PAR ZAWODNIKÓW ---
+        let dualParticipants = [null, null];
+        let dualTimers = [null, null];
+        let dualStartTimes = [null, null];
+        let dualLoops = [[], []];
+        let dualResults = [null, null];
+        let dualRunning = [false, false];
+
+        // --- DOM ELEMENTS ---
+        const nameInput = document.getElementById("nameInput");
+        const participantsBody = document.getElementById("participantsBody");
+        const competitionSelect = document.getElementById("competitionSelect");
+        const competitionNameInput = document.getElementById("competitionNameInput");
+        const body = document.body;
+        const mainAppContainer = document.getElementById('main-app');
+        const focusModeContainer = document.getElementById('focus-mode');
+        const liveTimerDisplay = document.getElementById('live-timer');
+        const focusParticipantName = document.getElementById('focus-participant-name');
+        const logoDisplay = document.getElementById('logo-display');
+        const sortAscBtn = document.getElementById('sort-asc-btn');
+        const sortDescBtn = document.getElementById('sort-desc-btn');
+        const changeLogoBtn = document.getElementById('change-logo-btn');
+        const focusStartBtn = document.getElementById('focus-start-btn');
+        const focusRunningBtns = document.getElementById('focus-running-btns');
+        const summaryLogoContainer = document.getElementById('summary-logo-container');
+        const resultFocusMode = document.getElementById('result-focus-mode');
+        const resultFocusName = document.getElementById('result-focus-name');
+        const resultFocusInput = document.getElementById('result-focus-input');
+        const resultFocusSaveBtn = document.getElementById('result-focus-save');
+        const participantList = document.getElementById('participant-list');
+        const dualFocusMode = document.getElementById('dual-focus-mode');
+        const dualStartBtn = document.getElementById('dual-start-btn');
+
+        // --- DATA PERSISTENCE ---
+        function saveData() {
+            localStorage.setItem(APP_STORAGE_KEY, JSON.stringify(competitions));
+        }
+
+        function loadData() {
+            const savedData = localStorage.getItem(APP_STORAGE_KEY);
+            const defaultState = Array.from({ length: 8 }, (_, i) => ({
+                name: `KONKURENCJA ${i + 1}`,
+                participants: [],
+                sortOrder: null
+            }));
+
+            if (savedData) {
+                let parsedData = JSON.parse(savedData);
+                if (parsedData.length < 8) {
+                    const additionalCompetitions = defaultState.slice(parsedData.length);
+                    competitions = [...parsedData, ...additionalCompetitions];
+                } else {
+                    competitions = parsedData;
+                }
+
+                competitions.forEach((c, i) => {
+                    if (!c.name) c.name = `KONKURENCJA ${i+1}`;
+                    if (c.sortOrder === undefined) c.sortOrder = null;
+                });
+            } else {
+                competitions = defaultState;
+            }
+            logoDisplay.src = '';
+            logoDisplay.classList.add('hidden');
+            changeLogoBtn.textContent = 'WGRAJ LOGO';
+            switchCompetition();
+            updatePairStartButton();
+        }
+        
+        // --- LOGO HANDLING ---
+        function handleLogoUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    logoDisplay.src = e.target.result;
+                    logoDisplay.classList.remove('hidden');
+                    changeLogoBtn.textContent = 'ZMIEŃ LOGO';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // --- PARTICIPANT MANAGEMENT ---
+        function addParticipantFromInput() {
+            const name = nameInput.value.trim().toUpperCase();
+            if (name) {
+                addParticipant(name);
+                nameInput.value = "";
+                nameInput.focus();
+            }
+        }
+        function handleManualNameInput(event) {
+            if (event.key === "Enter") {
+                event.preventDefault(); 
+                addParticipantFromInput();
+            }
+        }
+        function addParticipant(name) {
+            competitions[currentCompetition].participants.push({ name, result: null });
+            updateAllUI();
+        }
+        function updateName(index, value) {
+            competitions[currentCompetition].participants[index].name = value.trim().toUpperCase();
+            updateAllUI();
+        }
+        function updateResult(index, value) {
+            const val = parseFloat(String(value).replace(',', '.'));
+            competitions[currentCompetition].participants[index].result = isNaN(val) ? null : val;
+            updateAllUI();
+        }
+        function deleteParticipant(index) {
+            competitions[currentCompetition].participants.splice(index, 1);
+            updateAllUI();
+        }
+
+        // --- FORMATTING ---
+        function formatResult(result) {
+            if (result === null) return "-";
+            if (Number.isInteger(result)) {
+                return result.toString();
+            }
+            return result.toFixed(2).replace('.', ',');
+        }
+
+        // --- UI RENDERING ---
+        function updateAllUI() {
+            saveData();
+            renderParticipantsTable();
+            renderParticipantList();
+            updatePairStartButton();
+        }
+
+        function renderParticipantsTable() {
+            participantsBody.innerHTML = "";
+            const { participants, sortOrder } = competitions[currentCompetition];
+            const isStartDisabled = sortOrder === null;
+
+            if (participants.length === 0) {
+                participantsBody.innerHTML = `<tr><td colspan="4" class="text-center p-8 text-gray-400">Brak uczestników.</td></tr>`;
+                return;
+            }
+            participants.forEach((p, index) => {
+                const row = document.createElement("tr");
+                row.className = "border-b border-gray-700 hover:bg-gray-700/50";
+                row.innerHTML = `
+                    <td class="p-3 font-black text-amber-400">${index + 1}</td>
+                    <td class="p-3 text-lg font-bold">${p.name}</td>
+                    <td class="p-3 text-lg font-bold text-center cursor-pointer" onclick="editResultInFocus(${index})">${formatResult(p.result)}</td>
+                    <td class="p-3 text-center space-x-2">
+                        <button 
+                            onclick="launchFocusMode(${index})" 
+                            class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg text-lg transition-transform transform hover:scale-105 ${isStartDisabled ? 'start-disabled' : ''}"
+                            ${isStartDisabled ? 'disabled title="Wybierz typ konkurencji (↑ lub ↓)"' : ''}
+                        >START</button>
+                        <button onclick="deleteParticipant(${index})" class="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-bold rounded-lg text-sm transition-transform transform hover:scale-105">🗑️</button>
+                    </td>
+                `;
+                participantsBody.appendChild(row);
+            });
+        }
+
+        function renderParticipantList() {
+            participantList.innerHTML = "";
+            const { participants } = competitions[currentCompetition];
+            if (participants.length === 0) {
+                participantList.innerHTML = `<li class="text-gray-400">Brak dodanych uczestników.</li>`;
+                return;
+            }
+            participants.forEach((p, index) => {
+                const li = document.createElement("li");
+                li.className = "text-white font-bold";
+                li.textContent = p.name;
+                participantList.appendChild(li);
+            });
+        }
+
+        // --- FOCUS MODE LOGIC ---
+        function editResultInFocus(index) {
+            currentIndex = index;
+            const participant = competitions[currentCompetition].participants[index];
+            resultFocusName.textContent = `Edytuj wynik dla: ${participant.name}`;
+            resultFocusInput.value = participant.result !== null ? participant.result : '';
+            resultFocusMode.classList.remove('hidden');
+            resultFocusInput.focus();
+            resultFocusSaveBtn.onclick = () => saveResultFromFocus(index);
+        }
+
+        function saveResultFromFocus(index) {
+            updateResult(index, resultFocusInput.value);
+            resultFocusMode.classList.add('hidden');
+        }
+
+        function launchFocusMode(index) {
+            currentIndex = index;
+            focusParticipantName.textContent = competitions[currentCompetition].participants[index].name;
+            liveTimerDisplay.textContent = "0,00";
+            focusStartBtn.classList.remove('hidden');
+            focusRunningBtns.classList.add('hidden');
+            mainAppContainer.classList.add('hidden');
+            focusModeContainer.classList.remove('hidden');
+            body.classList.add('focus-active');
+        }
+
+        function startStoper() {
+            startTime = Date.now();
+            loops = [];
+            timer = setInterval(() => {
+                const elapsedTime = (Date.now() - startTime) / 1000;
+                liveTimerDisplay.textContent = elapsedTime.toFixed(2).replace('.', ',');
+            }, 45);
+            focusStartBtn.classList.add('hidden');
+            focusRunningBtns.classList.remove('hidden');
+        }
+
+        function recordLoop() {
+            if (!startTime) return;
+            const elapsed = (Date.now() - startTime) / 1000;
+            loops.push(elapsed);
+            const notif = document.createElement('div');
+            notif.className = 'fixed top-5 right-5 bg-blue-500 text-white font-bold p-4 rounded-lg shadow-xl animate-pulse z-50';
+            notif.textContent = `MIĘDZYCZAS ${loops.length}: ${elapsed.toFixed(2)}s`;
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 2000);
+        }
+
+        function stopTimer() {
+            clearInterval(timer);
+            timer = null;
+            const finalTime = (Date.now() - startTime) / 1000;
+            const exitFocusMode = () => {
+                focusModeContainer.classList.add('hidden');
+                mainAppContainer.classList.remove('hidden');
+                body.classList.remove('focus-active');
+                hideModal();
+            };
+            if (loops.length === 0) {
+                updateResult(currentIndex, finalTime);
+                exitFocusMode();
+            } else {
+                let content = "<p>Wybierz, który wynik zapisać:</p>";
+                const buttons = loops.map((l, i) => ({
+                    text: `Loop ${i + 1}: ${l.toFixed(2)}s`, class: 'bg-blue-600 w-full mb-2',
+                    action: () => { updateResult(currentIndex, loops[i]); exitFocusMode(); }
+                }));
+                buttons.push({
+                    text: `Finalny: ${finalTime.toFixed(2)}s`, class: 'bg-green-600 w-full mb-2',
+                    action: () => { updateResult(currentIndex, finalTime); exitFocusMode(); }
+                });
+                buttons.push({text: "Anuluj", class: "bg-gray-600 w-full mt-4", action: exitFocusMode});
+                showModal("Wybierz ostateczny wynik", content, buttons);
+            }
+        }
+        
+        // --- COMPETITION & RESULTS ---
+        function switchCompetition() {
+            currentCompetition = parseInt(competitionSelect.value);
+            competitionNameInput.value = competitions[currentCompetition].name;
+            updateSortButtonsUI();
+            updateAllUI();
+        }
+        function updateCompetitionName(newName) {
+            competitions[currentCompetition].name = newName.toUpperCase();
+            saveData();
+        }
+        function setSortOrder(order) {
+            competitions[currentCompetition].sortOrder = order;
+            updateSortButtonsUI();
+            updateAllUI();
+        }
+        function updateSortButtonsUI() {
+            const { sortOrder } = competitions[currentCompetition];
+            sortAscBtn.className = `flex-1 p-4 font-bold rounded-xl text-2xl transition-colors ${sortOrder === 'asc' ? 'bg-amber-500 text-gray-900' : 'bg-gray-600 text-white'}`;
+            sortDescBtn.className = `flex-1 p-4 font-bold rounded-xl text-2xl transition-colors ${sortOrder === 'desc' ? 'bg-amber-500 text-gray-900' : 'bg-gray-600 text-white'}`;
+        }
+        function resetCompetitionWithConfirmation() {
+            showModal("Potwierdzenie", `<p>Czy na pewno chcesz usunąć wszystkich uczestników i wyniki z konkurencji "${competitions[currentCompetition].name}"?</p>`, [
+                {text: "Anuluj", class: "bg-gray-600", action: hideModal},
+                {text: "Tak, resetuj", class: "bg-red-700", action: () => {
+                    competitions[currentCompetition].participants = [];
+                    updateAllUI();
+                    hideModal();
+                }}
+            ]);
+        }
+        function sortResults(participants) {
+            const { sortOrder } = competitions[currentCompetition];
+            if (!sortOrder) return participants.filter(p => p.result !== null);
+            return [...participants]
+                .filter(p => p.result !== null)
+                .sort((a, b) => sortOrder === 'desc' ? b.result - a.result : a.result - b.result);
+        }
+        function summarizeResults() {
+            const sorted = sortResults(competitions[currentCompetition].participants);
+            
+            let logoHtml = '';
+            if (logoDisplay.src && logoDisplay.src.startsWith('data:image')) {
+                logoHtml = `<img src="${logoDisplay.src}" class="w-1/2 mx-auto mb-4 rounded-lg shadow-lg">`;
+            }
+
+            if (sorted.length === 0) {
+                showModal("Podsumowanie", logoHtml + "<p>Brak wyników do podsumowania.</p>", [{text: "OK", class: "bg-blue-600", action: hideModal}]);
+                return;
+            }
+            let summaryHtml = logoHtml + '<ol class="list-decimal list-inside space-y-2">';
+            sorted.forEach(p => {
+                summaryHtml += `<li class="text-lg"><span class="font-bold">${p.name}</span> - <span class="text-amber-400 font-black">${formatResult(p.result)}</span></li>`;
+            });
+            summaryHtml += '</ol>';
+            showModal(`🏆 WYNIKI - ${competitions[currentCompetition].name}`, summaryHtml, [{text: "Zamknij", class: "bg-blue-600", action: hideModal}]);
+        }
+        
+        // --- PDF EXPORT (FIXED) ---
+        function exportPDF(includeLogo = true) {
+            const generatePdfContent = (imgElement = null) => {
+                try {
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    const { name, participants } = competitions[currentCompetition];
+                    const sorted = sortResults(participants);
+                    let tableStartY = 20;
+
+                    if (imgElement) {
+                        const imgWidth = imgElement.width;
+                        const imgHeight = imgElement.height;
+                        const imgData = imgElement.src;
+                        const imgFormat = imgData.includes('jpeg') ? 'JPEG' : 'PNG';
+                        const pdfLogoWidth = 50;
+                        const pdfLogoHeight = imgHeight > 0 ? imgHeight * (pdfLogoWidth / imgWidth) : 0;
+                        
+                        if (pdfLogoHeight > 0) {
+                            const logoX = (doc.internal.pageSize.getWidth() - pdfLogoWidth) / 2;
+                            const logoY = 15;
+                            doc.addImage(imgData, imgFormat, logoX, logoY, pdfLogoWidth, pdfLogoHeight);
+                            tableStartY = logoY + pdfLogoHeight + 15;
+                        }
+                    }
+                    
+                    doc.setFont("helvetica", "bold");
+                    doc.setFontSize(22);
+                    doc.text(normalizePolishChars(name), doc.internal.pageSize.getWidth() / 2, tableStartY - 5, { align: 'center' });
+                    
+                    const tableColumn = ["Miejsce", "KTO", "Wynik"];
+                    const tableRows = sorted.map((p, i) => [i + 1, normalizePolishChars(p.name), formatResult(p.result)]);
+                    
+                    if (tableRows.length > 0) {
+                        doc.autoTable({ head: [tableColumn], body: tableRows, startY: tableStartY, theme: 'grid', styles: { fontSize: 14, cellPadding: 3 }, headStyles: { fillColor: [245, 158, 11], fontSize: 16 } });
+                    } else {
+                        doc.setFontSize(14);
+                        doc.text("Brak wyników do wyeksportowania.", doc.internal.pageSize.getWidth() / 2, tableStartY, { align: 'center' });
+                    }
+
+                    doc.save(normalizePolishChars(`wyniki_${name.replace(/ /g, '_').toLowerCase()}.pdf`));
+                } catch (error) {
+                    console.error("Błąd podczas generowania PDF:", error);
+                    showModal( "Błąd tworzenia PDF", "<p>Wystąpił nieoczekiwany problem podczas generowania pliku PDF. Spróbuj ponownie.</p>", [{text: "OK", class: "bg-red-600", action: hideModal}] );
+                }
+            };
+
+            if (includeLogo && logoDisplay.src && logoDisplay.src.startsWith('data:image')) {
+                const tempImg = new Image();
+                tempImg.onload = function() {
+                    generatePdfContent(this);
+                };
+                tempImg.onerror = function() {
+                    console.error("Błąd ładowania obrazu logo dla PDF.");
+                    showModal("Błąd tworzenia PDF", "<p>Nie udało się załadować obrazu logo. Czy chcesz kontynuować bez logo?</p>", [
+                        { text: "Anuluj", class: "bg-gray-600", action: hideModal },
+                        { text: "Generuj bez logo", class: "bg-blue-700", action: () => {
+                            hideModal();
+                            generatePdfContent(null);
+                        }}
+                    ]);
+                };
+                tempImg.src = logoDisplay.src;
+            } else {
+                generatePdfContent(null);
+            }
+        }
+
+        function normalizePolishChars(text) {
+            return String(text).replace(/[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g, m => ({'ą':'a','ć':'c','ę':'e','ł':'l','ń':'n','ó':'o','ś':'s','ź':'z','ż':'z','Ą':'A','Ć':'C','Ę':'E','Ł':'L','Ń':'N','Ó':'O','Ś':'S','Ź':'Z','Ż':'Z'}[m]||m));
+        }
+
+        // --- MODAL UTILITIES ---
+        function showModal(title, content, buttons) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-content').innerHTML = content;
+            const buttonsContainer = document.getElementById('modal-buttons');
+            buttonsContainer.innerHTML = '';
+            buttons.forEach(btnInfo => {
+                const button = document.createElement('button');
+                button.textContent = btnInfo.text;
+                button.className = `px-4 py-2 rounded-lg font-bold text-white transition-opacity hover:opacity-80 ${btnInfo.class}`;
+                button.onclick = btnInfo.action;
+                buttonsContainer.appendChild(button);
+            });
+            document.getElementById('modal-backdrop').classList.remove('hidden');
+            document.getElementById('modal-panel').classList.remove('hidden');
+        }
+        function hideModal() {
+            document.getElementById('modal-backdrop').classList.add('hidden');
+            document.getElementById('modal-panel').classList.add('hidden');
+        }
+        
+        // --- FUNKCJE DLA PAR ZAWODNIKÓW ---
+        function selectParticipant(position) {
+            const participants = competitions[currentCompetition].participants;
+            if (participants.length === 0) return;
+            
+            const modalContent = participants.map((p, i) => 
+                `<div class="p-3 border-b border-gray-700 cursor-pointer hover:bg-gray-700" onclick="chooseParticipant(${i}, ${position})">
+                    ${p.name}
+                 </div>`
+            ).join('');
+            
+            showModal(`Wybierz zawodnika ${position+1}`, modalContent, [{
+                text: "Anuluj",
+                class: "bg-gray-600",
+                action: hideModal
+            }]);
+        }
+
+        function chooseParticipant(index, position) {
+            const participant = competitions[currentCompetition].participants[index];
+            document.getElementById(`participant${position+1}-card`).textContent = participant.name;
+            dualParticipants[position] = index;
+            hideModal();
+            updatePairStartButton();
+        }
+
+        function updatePairStartButton() {
+            const btn = document.getElementById('start-pair-btn');
+            btn.disabled = dualParticipants[0] === null || dualParticipants[1] === null;
+        }
+
+        function launchDualFocusMode() {
+            const comp = competitions[currentCompetition];
+            
+            document.getElementById('dual-timer-name1').textContent = 
+                comp.participants[dualParticipants[0]].name;
+            document.getElementById('dual-timer-name2').textContent = 
+                comp.participants[dualParticipants[1]].name;
+                
+            document.getElementById('live-timer1').textContent = "0,00";
+            document.getElementById('live-timer2').textContent = "0,00";
+            
+            dualResults = [null, null];
+            dualLoops = [[], []];
+            dualRunning = [false, false];
+            
+            document.getElementById('save-dual-results').disabled = true;
+            
+            mainAppContainer.classList.add('hidden');
+            dualFocusMode.classList.remove('hidden');
+            body.classList.add('focus-active');
+        }
+
+        function startBothStoper() {
+            // Startuj tylko jeśli nie są już uruchomione
+            if (!dualRunning[0]) startDualStoper(1);
+            if (!dualRunning[1]) startDualStoper(2);
+        }
+
+        function startDualStoper(timerId) {
+            const idx = timerId - 1;
+            if (dualRunning[idx]) return;
+            
+            dualStartTimes[idx] = Date.now();
+            dualRunning[idx] = true;
+            
+            dualTimers[idx] = setInterval(() => {
+                const elapsedTime = (Date.now() - dualStartTimes[idx]) / 1000;
+                document.getElementById(`live-timer${timerId}`).textContent = 
+                    elapsedTime.toFixed(2).replace('.', ',');
+            }, 45);
+        }
+
+        function stopDualStoper(timerId) {
+            const idx = timerId - 1;
+            if (!dualRunning[idx]) return;
+            
+            clearInterval(dualTimers[idx]);
+            dualTimers[idx] = null;
+            dualRunning[idx] = false;
+            
+            const finalTime = (Date.now() - dualStartTimes[idx]) / 1000;
+            const exitSelection = (selectedTime) => {
+                dualResults[idx] = selectedTime;
+                document.getElementById(`live-timer${timerId}`).textContent = selectedTime.toFixed(2).replace('.', ',');
+                checkDualResults();
+            };
+            
+            if (dualLoops[idx].length === 0) {
+                exitSelection(finalTime);
+            } else {
+                let content = "<p>Wybierz, który wynik zapisać:</p>";
+                const buttons = dualLoops[idx].map((l, i) => ({
+                    text: `Loop ${i + 1}: ${l.toFixed(2)}s`,
+                    class: 'bg-blue-600 w-full mb-2',
+                    action: () => exitSelection(l)
+                }));
+                buttons.push({
+                    text: `Finalny: ${finalTime.toFixed(2)}s`,
+                    class: 'bg-green-600 w-full mb-2',
+                    action: () => exitSelection(finalTime)
+                });
+                buttons.push({
+                    text: "Anuluj",
+                    class: "bg-gray-600 w-full mt-4",
+                    action: hideModal
+                });
+                
+                showModal(`Wybierz wynik dla Zawodnika ${timerId}`, content, buttons);
+            }
+        }
+
+        function checkDualResults() {
+            const allSet = dualResults[0] !== null && dualResults[1] !== null;
+            document.getElementById('save-dual-results').disabled = !allSet;
+        }
+
+        function saveDualResults() {
+            updateResult(dualParticipants[0], dualResults[0]);
+            updateResult(dualParticipants[1], dualResults[1]);
+            
+            dualFocusMode.classList.add('hidden');
+            mainAppContainer.classList.remove('hidden');
+            body.classList.remove('focus-active');
+            
+            dualParticipants = [null, null];
+            document.getElementById('participant1-card').textContent = "Wybierz zawodnika";
+            document.getElementById('participant2-card').textContent = "Wybierz zawodnika";
+            
+            updateAllUI();
+        }
+        
+        // --- OBSŁUGA PRZYCISKÓW GŁOŚNOŚCI ---
+        // Funkcja do obsługi przycisków głośności
+        function handleVolumeKeys(event) {
+            // Obsługa tylko w trybie dual focus
+            if (!dualFocusMode.classList.contains('hidden')) {
+                // Volume Up - start obu stoperów
+                if (event.key === "VolumeUp") {
+                    event.preventDefault();
+                    startBothStoper();
+                }
+                // Volume Down - stop pierwszego stoperu
+                else if (event.key === "VolumeDown") {
+                    event.preventDefault();
+                    if (dualRunning[0]) {
+                        stopDualStoper(1);
+                    }
+                }
+            }
+        }
+
+        // Obsługa dla przeglądarek, które nie obsługują zdarzeń VolumeUp/VolumeDown
+        function simulateVolumeButtons() {
+            document.getElementById('volume-up').addEventListener('click', () => {
+                if (!dualFocusMode.classList.contains('hidden')) {
+                    startBothStoper();
+                }
+            });
+            
+            document.getElementById('volume-down').addEventListener('click', () => {
+                if (!dualFocusMode.classList.contains('hidden') && dualRunning[0]) {
+                    stopDualStoper(1);
+                }
+            });
+        }
+
+        // --- INICJALIZACJA ---
+        window.onload = function() {
+            loadData();
+            
+            // Nasłuchuj zdarzeń przycisków głośności
+            document.addEventListener('keydown', handleVolumeKeys);
+            
+            // Symulacja przycisków dla przeglądarek bez wsparcia
+            simulateVolumeButtons();
+        };
+    </script>
+</body>
+</html>
