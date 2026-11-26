@@ -1,12 +1,9 @@
-# QUIZ MOW – Quizy i testy wiedzy
+# EduTest · Quizy — wersja publiczna 2.1
 
 https://jarekdymek.github.io/Konkursy/
 
-## Wersja 1.1
-- Jeden ekran: dział, liczba pytań, tryb, start.
-- Nauka: natychmiastowa informacja o odpowiedzi; przejście dalej po zatwierdzeniu.
-- Sprawdzian: automatyczne przejście do kolejnego pytania bez podpowiedzi. Wynik i błędy na końcu.
-- 80 pytań, 4 działy, losowanie odpowiedzi, powtórka błędów.
-- Pilot: góra/dół wybiera, prawo/OK/zielony zatwierdza, 1–4 odpowiedź, czerwony/menu. Na telefonie dotyk.
-- Lektor i ustawienia audio usunięte; poprzednia wersja pozostaje w historii Git.
-- Baza JSON (id=bank) w index.html, pierwsza odpowiedź w każdym wierszu poprawna. Stary plik Konkurs na 2.html bez zmian.
+284 pytania: edukacja zdrowotna 44, religia 80, biologia 80, matematyka (klasa V, ułamki zwykłe) 80. Nauka i sprawdzian, losowanie, powtórki błędów, pilot bez OK. Bez lektora, logowania i danych uczniów. Service Worker zapisuje stronę quizu do pracy offline na wspieranych przeglądarkach po pierwszym uruchomieniu online. Nie gwarantuje działania po usunięciu pamięci przeglądarki.
+
+Panel formalnych testów: https://edukacja-zdrowotna-jarek.jarekd.chatgpt.site/
+
+Ten statyczny katalog nie zawiera prywatnych banków testów, danych uczniów ani mechanizmu serwerowego importu. Kolejne wbudowane zestawy publikuje się przez aktualizację bloku catalog w index.html; importy z panelu EduTest wymagają osobnej publikacji do katalogu GitHub. Stary plik Konkurs na 2.html zachowany.
