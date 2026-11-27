@@ -11,3 +11,7 @@ Ten statyczny katalog nie zawiera danych uczniów, historii prac ani mechanizmu 
 
 ## Aktualizacja 2.2
 Matematyka: piętrowy zapis ułamków we wszystkich widokach quizu. Edukacja zdrowotna: pełne banki źródłowe z lib/seed.json, klasa VII (66 pytań A–D + 132 zdania P/F = 198), klasa VIII (33 + 66 = 99); 11 działów w każdej klasie. Każde zdanie P/F jest odrębnym pytaniem. Zachowano 44 pytania powtórki ogólnej. Łącznie 581 pozycji ćwiczeniowych. Na żądanie właściciela bank ćwiczeń zawiera także pytania i klucze z istniejących formalnych testów zdrowotnych; nie należy już wykorzystywać tych samych pytań jako niejawnego sprawdzianu bez przygotowania nowego zestawu. Materiały zdrowotne: „Edukacja zdrowotna. Podręcznik dla nauczycieli”, red. J. Grzebieluch, A. Basiak-Rasała, B. Grabowska, UMW 2025, CC BY-NC-SA 3.0 PL.
+
+
+## Aktualizacja 2.3
+Matematyka: 80 istniejących zadań z czterech działań oraz dodatkowy przykład 2 1/2 → 5/2, razem 81 zadań wieloetapowych. Terminologia, metoda, uzupełnianie liczników/mianowników, uproszczenie i wyłączenie całości. Każdy etap ma cztery opcje, błędna odpowiedź blokuje przejście dalej i wyświetla wskazówkę. Podsumowanie zadań i etapów poprawnych za pierwszym razem oraz powtórka trudnych zadań. Nie przeniesiono oryginalnych kart A–E (135 zadań) – pliki nie zostały odnalezione. Format danych guided umożliwia dopisanie kolejnych ścieżek.
