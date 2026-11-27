@@ -1,4 +1,4 @@
-var CACHE='edutest-quiz-pages-v2.3';var HOME=new URL('./',self.location.href).href;
+var CACHE='edutest-quiz-pages-v2.4';var HOME=new URL('./',self.location.href).href;
 self.addEventListener('install',function(e){e.waitUntil(caches.open(CACHE).then(function(c){return c.addAll([HOME])}).then(function(){return self.skipWaiting()}))});
 self.addEventListener('activate',function(e){e.waitUntil(caches.keys().then(function(ks){return Promise.all(ks.filter(function(k){return k.indexOf('edutest-quiz-pages-')===0&&k!==CACHE}).map(function(k){return caches.delete(k)}))}).then(function(){return self.clients.claim()}))});
 self.addEventListener('fetch',function(e){var u=new URL(e.request.url),home=new URL(HOME);if(e.request.method!=='GET'||u.origin!==home.origin||[home.pathname,home.pathname+'index.html'].indexOf(u.pathname)<0||e.request.mode!=='navigate')return;e.respondWith(fetch(e.request).then(function(r){if(r.ok){var copy=r.clone();return caches.open(CACHE).then(function(c){return c.put(HOME,copy)}).then(function(){return r},function(){return r})}return r}).catch(function(){return caches.match(HOME)}))});
